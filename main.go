@@ -80,6 +80,26 @@ func (bc *BlockChain) AddBlock(data BookCheckout) {
 	}
 }
 
+func validBlock(block, prevBlock *Block) bool {
+
+	if prevBlock.Hash != block.Hash {
+		return false
+	}
+	if !block.validateHash(block.Hash) {
+		return false
+	}
+
+	if prevBlock.Pos+1 != block.Pos {
+		return false
+	}
+	return true
+}
+
+func (b *Block) validateHash(hash string) bool {
+
+	return true
+}
+
 func writeBlock(w http.ResponseWriter, r *http.Request) {
 	var checkoutItem BookCheckout
 	err := json.NewDecoder(r.Body).Decode(&checkoutItem)
@@ -125,8 +145,19 @@ func newBook(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
+func GenesisBlock() *Block {
+	return CreateBlock(&Block{}, BookCheckout{IsGenesis: true})
+}
+
+func NewBlockChain() *BlockChain {
+	return &BlockChain{[]*Block{GenesisBlock()}}
+}
+
 // define main func
 func main() {
+
+	BlockChain = NewBlockChain()
+
 	r := mux.NewRouter()
 	r.HandleFunc("/", getBlockChain).Methods("GET")
 	r.HandleFunc("/", writeBlock).Methods("POST")
