@@ -40,12 +40,12 @@ type Book struct {
 	ISBN          string `json:"isbn"`
 }
 
-type BlockChain struct {
+type Blockchain struct {
 	blocks []*Block
 }
 
 // blockchain variable to store blocks like a database
-var BlockChain *BlockChain
+var BlockChain *Blockchain
 
 // generate hash and add to block
 func (b *Block) generateHash() {
@@ -71,7 +71,7 @@ func CreateBlock(prevBlock *Block, checkoutItem BookCheckout) *Block {
 
 // struct method is different from a regular function in go.
 // struct method
-func (bc *BlockChain) AddBlock(data BookCheckout) {
+func (bc *Blockchain) AddBlock(data BookCheckout) {
 	prevBlock := bc.blocks[len(bc.blocks)-1] // take current block
 
 	block := CreateBlock(prevBlock, data)
@@ -96,7 +96,10 @@ func validBlock(block, prevBlock *Block) bool {
 }
 
 func (b *Block) validateHash(hash string) bool {
-
+	b.generateHash()
+	if b.Hash != hash {
+		return false
+	}
 	return true
 }
 
@@ -149,8 +152,22 @@ func GenesisBlock() *Block {
 	return CreateBlock(&Block{}, BookCheckout{IsGenesis: true})
 }
 
-func NewBlockChain() *BlockChain {
-	return &BlockChain{[]*Block{GenesisBlock()}}
+func NewBlockChain() *Blockchain {
+	return &Blockchain{[]*Block{GenesisBlock()}}
+}
+
+// get blockchains
+
+func getBlockChain(w http.ResponseWriter, r *http.Request) {
+	jbytes, err := json.MarshalIndent(BlockChain.blocks, "", " ")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+
+	io.WriteString(w, string(jbytes))
+
 }
 
 // define main func
@@ -162,6 +179,17 @@ func main() {
 	r.HandleFunc("/", getBlockChain).Methods("GET")
 	r.HandleFunc("/", writeBlock).Methods("POST")
 	r.HandleFunc("/new", newBook).Methods("POST")
+
+	// function executes as soon as the program starts
+	go func() {
+		for _, block := range BlockChain.blocks {
+			fmt.Printf("Prev hash: %x\n", block.PrevHash)
+			bytes, _ := json.MarshalIndent(block.Data, "", " ")
+			fmt.Printf("Data: %v\n", string(bytes))
+			fmt.Printf("Hash: %x\n", block.Hash)
+			fmt.Println()
+		}
+	}()
 
 	log.Println("Listening on port 3000")
 
